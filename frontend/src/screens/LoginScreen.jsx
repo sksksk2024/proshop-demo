@@ -34,7 +34,7 @@ const LoginScreen = () => {
 
     try {
       const res = await login({ email, password }).unwrap();
-      dispatch(setCredentials(...res));
+      dispatch(setCredentials({ ...res }));
       navigate(redirect);
     } catch (err) {
       toast.error(err?.data?.message || err.error);
@@ -46,7 +46,7 @@ const LoginScreen = () => {
       <h1>Sign In</h1>
 
       <Form onSubmit={submitHandler}>
-        <Form.Group controlId="email" className="my-3">
+        <Form.Group className="my-2" controlId="email">
           <Form.Label>Email Address</Form.Label>
           <Form.Control
             type="email"
@@ -56,7 +56,7 @@ const LoginScreen = () => {
           ></Form.Control>
         </Form.Group>
 
-        <Form.Group controlId="password" className="my-3">
+        <Form.Group className="my-2" controlId="password">
           <Form.Label>Password</Form.Label>
           <Form.Control
             type="password"
@@ -66,12 +66,7 @@ const LoginScreen = () => {
           ></Form.Control>
         </Form.Group>
 
-        <Button
-          type="submit"
-          variant="primary"
-          className="mt-2"
-          disabled={isLoading}
-        >
+        <Button disabled={isLoading} type="submit" variant="primary">
           Sign In
         </Button>
 
