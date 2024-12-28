@@ -101,6 +101,10 @@ const OrderScreen = () => {
     refetch();
   };
 
+  console.log('PayPal Client ID:', paypal?.clientId);
+  console.log('Order Details:', order);
+  console.log('PayPal Script Loaded:', window.paypal);
+
   return isLoading ? (
     <Loader />
   ) : error ? (
