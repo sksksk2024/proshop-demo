@@ -1,116 +1,189 @@
-import { LinkContainer } from 'react-router-bootstrap';
-import { Table, Button, Row, Col } from 'react-bootstrap';
-import { FaEdit, FaTrash } from 'react-icons/fa';
-import { useParams } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Form, Button } from 'react-bootstrap';
 import Message from '../../components/Message';
 import Loader from '../../components/Loader';
-import Paginate from '../../components/Paginate';
+import FormContainer from '../../components/FormContainer';
 import { toast } from 'react-toastify';
 import {
-  useGetProductsQuery,
-  useCreateProductMutation,
-  useDeleteProductMutation,
+  useGetProductDetailsQuery,
+  useUpdateProductMutation,
+  useUploadProductImageMutation,
 } from '../../slices/productsApiSlice';
 
-const ProductListScreen = () => {
-  const { pageNumber } = useParams();
+const ProductEditScreen = () => {
+  const { id: productId } = useParams();
 
-  const { data, isLoading, error, refetch } = useGetProductsQuery({
-    pageNumber,
-  });
+  const [name, setName] = useState('');
+  const [price, setPrice] = useState(0);
+  const [image, setImage] = useState('');
+  const [brand, setBrand] = useState('');
+  const [category, setCategory] = useState('');
+  const [countInStock, setCountInStock] = useState(0);
+  const [description, setDescription] = useState('');
 
-  const [createProduct, { isLoading: loadingCreate }] =
-    useCreateProductMutation();
+  const {
+    data: product,
+    isLoading,
+    refetch,
+    error,
+  } = useGetProductDetailsQuery(productId);
 
-  const [deleteProduct, { isLoading: loadingDelete }] =
-    useDeleteProductMutation();
+  const [updateProduct, { isLoading: loadingUpdate }] =
+    useUpdateProductMutation();
 
-  const deleteHandler = async (id) => {
-    if (window.confirm('Are you sure?')) {
-      try {
-        await deleteProduct(id);
-        refetch();
-      } catch (err) {
-        toast.error(err?.data?.message || err.error);
-      }
+  const [uploadProductImage, { isLoading: loadingUpload }] =
+    useUploadProductImageMutation();
+
+  const navigate = useNavigate();
+
+  const submitHandler = async (e) => {
+    e.preventDefault();
+    try {
+      await updateProduct({
+        productId,
+        name,
+        price,
+        image,
+        brand,
+        category,
+        description,
+        countInStock,
+      }).unwrap(); // NOTE: here we need to unwrap the Promise to catch any rejection in our catch block
+      toast.success('Product updated');
+      refetch();
+      navigate('/admin/productlist');
+    } catch (err) {
+      toast.error(err?.data?.message || err.error);
     }
   };
 
-  const createProductHandler = async () => {
-    if (window.confirm('Are you sure you want to create a new product?')) {
-      try {
-        await createProduct();
-        toast.success('Product deleted');
-        refetch();
-      } catch (err) {
-        toast.error(err?.data?.message || err.error);
-      }
+  useEffect(() => {
+    if (product) {
+      setName(product.name);
+      setPrice(product.price);
+      setImage(product.image);
+      setBrand(product.brand);
+      setCategory(product.category);
+      setCountInStock(product.countInStock);
+      setDescription(product.description);
+    }
+  }, [product]);
+
+  const uploadFileHandler = async (e) => {
+    const formData = new FormData();
+    formData.append('image', e.target.files[0]);
+    try {
+      const res = await uploadProductImage(formData).unwrap();
+      toast.success(res.message);
+      setImage(res.image);
+    } catch (err) {
+      toast.error(err?.data?.message || err.error);
     }
   };
 
   return (
     <>
-      <Row className="align-items-center">
-        <Col>
-          <h1>Products</h1>
-        </Col>
-        <Col className="text-end">
-          <Button className="btn-sm m-3" onClick={createProductHandler}>
-            <FaEdit /> Create Product
-          </Button>
-        </Col>
-      </Row>
+      <Link to="/admin/productlist" className="btn btn-light my-3">
+        Go Back
+      </Link>
+      <FormContainer>
+        <h1>Edit Product</h1>
+        {loadingUpdate && <Loader />}
+        {isLoading ? (
+          <Loader />
+        ) : error ? (
+          <Message variant="danger">{error.data.message}</Message>
+        ) : (
+          <Form onSubmit={submitHandler}>
+            <Form.Group controlId="name">
+              <Form.Label>Name</Form.Label>
+              <Form.Control
+                type="name"
+                placeholder="Enter name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              ></Form.Control>
+            </Form.Group>
 
-      {loadingCreate && <Loader />}
-      {loadingDelete && <Loader />}
-      {isLoading ? (
-        <Loader />
-      ) : error ? (
-        <Message variant="danger">{error}</Message>
-      ) : (
-        <>
-          <Table striped hover responsive className="table-sm">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>NAME</th>
-                <th>PRICE</th>
-                <th>CATEGORY</th>
-                <th>BRAND</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.products.map((product) => (
-                <tr key={product._id}>
-                  <td>{product._id}</td>
-                  <td>{product.name}</td>
-                  <td>{product.price}</td>
-                  <td>{product.category}</td>
-                  <td>{product.brand}</td>
-                  <td>
-                    <LinkContainer to={`/admin/product/${product._id}/edit`}>
-                      <Button variant="light" className="btn-sm mx-2">
-                        <FaEdit />
-                      </Button>
-                    </LinkContainer>
-                    <Button
-                      variant="danger"
-                      className="btn-sm"
-                      onClick={() => deleteHandler(product._id)}
-                    >
-                      <FaTrash style={{ color: 'white' }} />
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-          <Paginate pages={data.pages} page={data.page} isAdmin={true} />
-        </>
-      )}
+            <Form.Group controlId="price">
+              <Form.Label>Price</Form.Label>
+              <Form.Control
+                type="number"
+                placeholder="Enter price"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+              ></Form.Control>
+            </Form.Group>
+
+            <Form.Group controlId="image">
+              <Form.Label>Image</Form.Label>
+              <Form.Control
+                type="text"
+                placeholder="Enter image url"
+                value={image}
+                onChange={(e) => setImage(e.target.value)}
+              ></Form.Control>
+              <Form.Control
+                label="Choose File"
+                onChange={uploadFileHandler}
+                type="file"
+              ></Form.Control>
+              {loadingUpload && <Loader />}
+            </Form.Group>
+
+            <Form.Group controlId="brand">
+              <Form.Label>Brand</Form.Label>
+              <Form.Control
+                type="text"
+                placeholder="Enter brand"
+                value={brand}
+                onChange={(e) => setBrand(e.target.value)}
+              ></Form.Control>
+            </Form.Group>
+
+            <Form.Group controlId="countInStock">
+              <Form.Label>Count In Stock</Form.Label>
+              <Form.Control
+                type="number"
+                placeholder="Enter countInStock"
+                value={countInStock}
+                onChange={(e) => setCountInStock(e.target.value)}
+              ></Form.Control>
+            </Form.Group>
+
+            <Form.Group controlId="category">
+              <Form.Label>Category</Form.Label>
+              <Form.Control
+                type="text"
+                placeholder="Enter category"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+              ></Form.Control>
+            </Form.Group>
+
+            <Form.Group controlId="description">
+              <Form.Label>Description</Form.Label>
+              <Form.Control
+                type="text"
+                placeholder="Enter description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+              ></Form.Control>
+            </Form.Group>
+
+            <Button
+              type="submit"
+              variant="primary"
+              style={{ marginTop: '1rem' }}
+            >
+              Update
+            </Button>
+          </Form>
+        )}
+      </FormContainer>
     </>
   );
 };
 
-export default ProductListScreen;
+export default ProductEditScreen;
